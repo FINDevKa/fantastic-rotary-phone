@@ -1,0 +1,53 @@
+import math
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+intents = discord.Intents.default()
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+def xp_for_level(level: int) -> int:
+    q = (min(level, 99) / 40) ** 2 * 100
+    return max(50, math.floor(5 + 4 * (level - 1) + q))
+
+
+def total_xp(from_level: int, to_level: int) -> int:
+    if to_level < from_level:
+        from_level, to_level = to_level, from_level
+    return sum(xp_for_level(i) for i in range(from_level, to_level))
+
+
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+    print(f"Logged in as {bot.user}")
+
+
+@bot.tree.command(name="levelscalculator", description="XP and kills needed to reach a target level")
+@app_commands.describe(
+    level="Your current level",
+    target="Level you want to reach",
+)
+async def levelscalculator(
+    interaction: discord.Interaction,
+    level: app_commands.Range[int, 1, 100],
+    target: app_commands.Range[int, 1, 100],
+):
+    start, end = (level, target) if level <= target else (target, level)
+    total = total_xp(start, end)
+    kills = math.ceil(total / 5)
+    arrow = "→" if level <= target else "←"
+
+    embed = discord.Embed(
+        title=f"Lv {start} {arrow} {end}",
+        color=discord.Color.blurple(),
+    )
+    embed.add_field(name="Total XP", value=f"**{total:,}**", inline=True)
+    embed.add_field(name="Kills needed", value=f"**{kills:,}**", inline=True)
+    embed.set_footer(text=f"Requested by {interaction.user.display_name}")
+
+    await interaction.response.send_message(embed=embed)
+
+
+bot.run("MTU3MjU2NTIzNzg0NzAzMTk0MQ.GsYgsW.H0XjPcFqkRXpasA3nMUZPwY88Zptt3t-zVj88U")
